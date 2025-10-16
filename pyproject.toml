@@ -44,6 +44,10 @@ dev = [
     "hatch",
     "taskipy",
 ]
+ui = [
+    "streamlit>=1.36",
+    "redis>=6.4",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -108,3 +112,4 @@ description = "Posix 3.13 full test"
 [tool.taskipy.tasks]
 analyzer = "gunicorn -w 4 -k uvicorn.workers.UvicornWorker services.analyzer:app --bind 0.0.0.0:8000"
 monitor = "gunicorn -w 4 -k uvicorn.workers.UvicornWorker services.monitor:app --bind 0.0.0.0:8001"
+ui = "streamlit run src/services/ui.py --server.address 0.0.0.0 --server.port 8501"

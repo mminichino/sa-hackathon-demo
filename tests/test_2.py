@@ -1,8 +1,9 @@
 import json
 import redis
 import os
-from unittest.mock import patch, MagicMock
+from typing import List
 from src.services.fraudomatic import get_score
+from src.services.db import get_user_transactions
 
 
 def test_with_database():
@@ -20,15 +21,25 @@ def test_with_database():
         password=password
     )
 
+    docs = get_user_transactions(r, "user_001")
+    transactions: List[dict] = []
+    for doc in docs:
+        data = doc.__dict__.get("json")
+        doc_data = json.loads(str(data))
+        transactions.append(doc_data)
+
+    current = transactions[0]
+    amounts = [txn['amount'] for txn in transactions]
+    average_spend = sum(amounts) / len(amounts) if amounts else 0
     result = get_score(
-        amount=50.0,
-        merchant="Familiar Store",
-        location="Familiar Location",
-        time="2025-10-16T10:00:00Z",
-        spend_average=55.0,
-        locations=["Familiar Location"],
-        merchants=["Familiar Store"],
-        recent_activity=[]
+        amount=str(current.get("amount")),
+        merchant=str(current.get("merchant_name")),
+        location=str(current.get("location")),
+        time=str(current.get("location")),
+        spend_average=str(average_spend),
+        locations=[txn['location'] for txn in transactions],
+        merchants=[txn['merchant_name'] for txn in transactions],
+        recent_activity=transactions
     )
 
     print(json.dumps(result, indent=2))

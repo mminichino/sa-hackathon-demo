@@ -18,12 +18,13 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules"
 ]
 keywords = ["demo", "llm", "redis"]
-requires-python = ">=3.9,<4"
+requires-python = ">=3.10,<4"
 dependencies = [
     "attrs>=21.2.0",
     "typer>=0.16.0",
     "redis>=6.4.0",
     "fastapi",
+    "flask",
     "uvicorn[standard]",
     "gunicorn",
     "langchain_openai"
@@ -33,6 +34,7 @@ dependencies = [
 "Homepage" = "https://github.com/mminichino/hostinit"
 
 [project.scripts]
+analyzer = "services.analyzer:main"
 
 [project.optional-dependencies]
 test = [
@@ -54,10 +56,10 @@ build-backend = "hatchling.build"
 path = "src/services/__init__.py"
 
 [tool.hatch.build.targets.sdist]
-packages = ["services"]
+packages = ["src/services"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["services"]
+packages = ["src/services"]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "session"

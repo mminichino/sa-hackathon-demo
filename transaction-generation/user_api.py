@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-Combined Fraud Detection API
+RediShield - Fraud Detection Protection Layer
+Emphasizing Redis as your protection layer
+
 - User Creation API: Creates users with realistic data
 - Transaction Generation API: Creates random transactions for existing users
 Key formats:
@@ -164,6 +166,11 @@ def index():
     """Serve the main UI"""
     return send_from_directory('.', 'index.html')
 
+@app.route('/logo.png')
+def logo():
+    """Serve the RediShield logo"""
+    return send_from_directory('.', 'logo.png')
+
 @app.route('/api/user', methods=['POST'])
 def create_user():
     """
@@ -262,10 +269,12 @@ def create_transaction():
         }), 500
 
 if __name__ == '__main__':
-    print("🚀 Starting Combined Fraud Detection API...")
+    print("🛡️ Starting RediShield - Fraud Detection Protection Layer...")
+    print("🚀 Emphasizing Redis as your protection layer")
     print("👥 User API - Redis Key Format: user:user_id:zipcode")
     print("💳 Transaction API - Redis Key Format: txn:user_id:transaction_id")
     print("🔗 Endpoints:")
+    print("   GET / - RediShield Web UI")
     print("   POST /api/user - Create user with realistic data")
     print("   POST /api/transaction - Create random transaction")
     print("📊 Features:")
@@ -273,5 +282,6 @@ if __name__ == '__main__':
     print("   ✅ Creates transactions with JSON, Stream, and Sorted Set storage")
     print("   ✅ Real zipcodes and locations")
     print("   ✅ Fraud score always false")
+    print("   ✅ Redis-styled protection layer UI")
 
     app.run(debug=True, host='0.0.0.0', port=5000)

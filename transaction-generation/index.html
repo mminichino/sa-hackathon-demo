@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis Fraud Detection Demo</title>
+    <style>
+        /* Redis.io inspired colors and styling */
+        :root {
+            --redis-red: #DC382D;
+            --redis-dark-red: #B8312A;
+            --redis-orange: #FF6B35;
+            --redis-dark-blue: #1A1A2E;
+            --redis-light-gray: #F5F5F5;
+            --redis-dark-gray: #2C2C54;
+            --redis-white: #FFFFFF;
+            --redis-green: #28A745;
+            --redis-blue: #007BFF;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--redis-dark-blue) 0%, var(--redis-dark-gray) 100%);
+            color: var(--redis-white);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            color: var(--redis-red);
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: var(--redis-light-gray);
+            margin-bottom: 20px;
+        }
+
+        .redis-logo {
+            font-size: 2rem;
+            color: var(--redis-red);
+            font-weight: bold;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--redis-red) 0%, var(--redis-dark-red) 100%);
+            color: var(--redis-white);
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(220, 56, 45, 0.3);
+            min-width: 200px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(220, 56, 45, 0.4);
+            background: linear-gradient(135deg, var(--redis-dark-red) 0%, var(--redis-red) 100%);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .results {
+                grid-template-columns: 1fr;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        .result-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .result-card h3 {
+            color: var(--redis-orange);
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .result-content {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+            border-left: 4px solid var(--redis-red);
+        }
+
+        .loading {
+            text-align: center;
+            color: var(--redis-orange);
+            font-style: italic;
+        }
+
+        .error {
+            color: #FF6B6B;
+            background: rgba(255, 107, 107, 0.1);
+            border-left-color: #FF6B6B;
+        }
+
+        .success {
+            color: var(--redis-green);
+        }
+
+        .key-value {
+            margin: 8px 0;
+        }
+
+        .key {
+            color: var(--redis-orange);
+            font-weight: bold;
+        }
+
+        .value {
+            color: var(--redis-light-gray);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-success {
+            background-color: var(--redis-green);
+        }
+
+        .status-error {
+            background-color: #FF6B6B;
+        }
+
+        .status-loading {
+            background-color: var(--redis-orange);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="redis-logo">⚡ REDIS</div>
+            <h1>Fraud Detection Demo</h1>
+            <p>Create users and generate transactions with Redis data structures</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn" id="createUserBtn" onclick="createUser()">
+                👥 Create User
+            </button>
+            <button class="btn" id="createTransactionBtn" onclick="createTransaction()">
+                💳 Create Transaction
+            </button>
+        </div>
+
+        <div class="results">
+            <div class="result-card">
+                <h3>
+                    <span class="status-indicator" id="userStatus"></span>
+                    User Creation Results
+                </h3>
+                <div class="result-content" id="userResult">
+                    <div class="loading">Click "Create User" to generate a new user...</div>
+                </div>
+            </div>
+
+            <div class="result-card">
+                <h3>
+                    <span class="status-indicator" id="transactionStatus"></span>
+                    Transaction Results
+                </h3>
+                <div class="result-content" id="transactionResult">
+                    <div class="loading">Click "Create Transaction" to generate a transaction...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        async function createUser() {
+            const btn = document.getElementById('createUserBtn');
+            const resultDiv = document.getElementById('userResult');
+            const statusIndicator = document.getElementById('userStatus');
+            
+            // Set loading state
+            btn.disabled = true;
+            btn.textContent = '⏳ Creating User...';
+            statusIndicator.className = 'status-indicator status-loading';
+            resultDiv.innerHTML = '<div class="loading">Creating user...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/user`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusIndicator.className = 'status-indicator status-success';
+                    resultDiv.innerHTML = formatUserResult(data);
+                } else {
+                    throw new Error(data.error || 'Failed to create user');
+                }
+            } catch (error) {
+                statusIndicator.className = 'status-indicator status-error';
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '👥 Create User';
+            }
+        }
+
+        async function createTransaction() {
+            const btn = document.getElementById('createTransactionBtn');
+            const resultDiv = document.getElementById('transactionResult');
+            const statusIndicator = document.getElementById('transactionStatus');
+            
+            // Set loading state
+            btn.disabled = true;
+            btn.textContent = '⏳ Creating Transaction...';
+            statusIndicator.className = 'status-indicator status-loading';
+            resultDiv.innerHTML = '<div class="loading">Creating transaction...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/transaction`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusIndicator.className = 'status-indicator status-success';
+                    resultDiv.innerHTML = formatTransactionResult(data);
+                } else {
+                    throw new Error(data.error || 'Failed to create transaction');
+                }
+            } catch (error) {
+                statusIndicator.className = 'status-indicator status-error';
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '💳 Create Transaction';
+            }
+        }
+
+        function formatUserResult(data) {
+            const user = data.user_data;
+            return `
+                <div class="success">✅ ${data.message}</div>
+                <div class="key-value">
+                    <span class="key">Redis Key:</span> 
+                    <span class="value">${data.redis_key}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">User ID:</span> 
+                    <span class="value">${user.user_id}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Name:</span> 
+                    <span class="value">${user.name}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Location:</span> 
+                    <span class="value">${user.location_address}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Zipcode:</span> 
+                    <span class="value">${user.zipcode}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Account Type:</span> 
+                    <span class="value">${user.account_type}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Created:</span> 
+                    <span class="value">${new Date(user.created_at).toLocaleString()}</span>
+                </div>
+            `;
+        }
+
+        function formatTransactionResult(data) {
+            const txn = data.transaction;
+            return `
+                <div class="success">✅ ${data.message}</div>
+                <div class="key-value">
+                    <span class="key">Redis Key:</span> 
+                    <span class="value">${data.redis_key}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Stream ID:</span> 
+                    <span class="value">${data.stream_id}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Sorted Set:</span> 
+                    <span class="value">${data.sorted_set_key}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Transaction ID:</span> 
+                    <span class="value">${txn.transaction_id}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">User:</span> 
+                    <span class="value">${txn.user_id}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Amount:</span> 
+                    <span class="value">$${txn.amount}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Merchant:</span> 
+                    <span class="value">${txn.merchant_name}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Location:</span> 
+                    <span class="value">${txn.location}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Card:</span> 
+                    <span class="value">${txn.card_number}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Type:</span> 
+                    <span class="value">${txn.transaction_type}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Fraud Score:</span> 
+                    <span class="value">${txn.is_fraud ? 'TRUE' : 'FALSE'}</span>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

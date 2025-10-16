@@ -346,6 +346,13 @@ st.markdown("""
 
 users = get_users('user:*')
 
+#clean up drop-down
+user_ids = []
+for u in users:
+    user_id = u.split(":")[1]
+    zip = u.split(":")[2]
+    user_ids.append("User ID: " + user_id + ", ZIP Code: " + zip)
+
 # Create two-column layout: left for controls, right for transactions
 left_col, right_col = st.columns([1, 2])
 
@@ -430,6 +437,9 @@ with right_col:
                 "transaction_type",
                 "status",
                 "is_fraud",
+                "risk_score",
+                'fraud_indicators',
+                'reasoning'
             ]
             cols_in_df = [c for c in preferred if c in df.columns]
             df = df[cols_in_df] if cols_in_df else df  # fallback to whatever is there

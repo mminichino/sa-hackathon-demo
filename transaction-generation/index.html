@@ -99,6 +99,23 @@
             background: linear-gradient(135deg, var(--redis-dark-red) 0%, var(--redis-red) 100%);
         }
 
+        .btn-fraud {
+            background: linear-gradient(135deg, #FF6B6B 0%, #FF5252 100%);
+            border: 2px solid #FF5252;
+            animation: pulse-fraud 2s infinite;
+        }
+
+        .btn-fraud:hover {
+            background: linear-gradient(135deg, #FF5252 0%, #F44336 100%);
+            box-shadow: 0 8px 25px rgba(255, 82, 82, 0.5);
+        }
+
+        @keyframes pulse-fraud {
+            0% { box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3); }
+            50% { box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6); }
+            100% { box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3); }
+        }
+
         .btn:active {
             transform: translateY(0);
         }
@@ -231,6 +248,9 @@
             <button class="btn" id="createTransactionBtn" onclick="createTransaction()">
                 💳 Create Transaction
             </button>
+            <button class="btn btn-fraud" id="createFraudBtn" onclick="createFraudTransaction()">
+                🚨 Create Fraud Transaction
+            </button>
         </div>
 
         <div class="results">
@@ -331,6 +351,43 @@
             }
         }
 
+        async function createFraudTransaction() {
+            const btn = document.getElementById('createFraudBtn');
+            const resultDiv = document.getElementById('transactionResult');
+            const statusIndicator = document.getElementById('transactionStatus');
+
+            // Set loading state
+            btn.disabled = true;
+            btn.textContent = '🔄 Creating Fraud Transaction...';
+            statusIndicator.className = 'status-indicator status-loading';
+            resultDiv.innerHTML = '<div class="loading">Generating suspicious transaction patterns...</div>';
+
+            try {
+                const response = await fetch('/api/fraud-transaction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusIndicator.className = 'status-indicator status-success';
+                    resultDiv.innerHTML = formatFraudTransactionResult(data);
+                } else {
+                    statusIndicator.className = 'status-indicator status-error';
+                    resultDiv.innerHTML = `<div class="error">❌ ${data.error || 'Failed to create fraud transaction'}</div>`;
+                }
+            } catch (error) {
+                statusIndicator.className = 'status-indicator status-error';
+                resultDiv.innerHTML = `<div class="error">❌ Network error: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚨 Create Fraud Transaction';
+            }
+        }
+
         function formatUserResult(data) {
             const user = data.user_data;
             return `
@@ -411,8 +468,62 @@
                     <span class="value">${txn.transaction_type}</span>
                 </div>
                 <div class="key-value">
-                    <span class="key">Fraud Score:</span> 
+                    <span class="key">Fraud Score:</span>
                     <span class="value">${txn.is_fraud ? 'TRUE' : 'FALSE'}</span>
+                </div>
+            `;
+        }
+
+        function formatFraudTransactionResult(data) {
+            const txn = data.transaction;
+            const aiNote = data.ai_processing_note;
+            return `
+                <div class="success">🚨 ${data.message}</div>
+                <div class="key-value">
+                    <span class="key">Redis Key:</span>
+                    <span class="value">${data.redis_key}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Stream ID:</span>
+                    <span class="value">${data.stream_id}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Transaction ID:</span>
+                    <span class="value">${txn.transaction_id}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">User:</span>
+                    <span class="value">${txn.user_id}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Amount:</span>
+                    <span class="value" style="color: #FF6B6B; font-weight: bold;">$${txn.amount}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Merchant:</span>
+                    <span class="value" style="color: #FF6B6B;">${txn.merchant_name}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Location:</span>
+                    <span class="value" style="color: #FF6B6B;">${txn.location}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Device:</span>
+                    <span class="value">${txn.device_id}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">AI Fraud Detection:</span>
+                    <span class="value" style="color: #FF9800;">${txn.is_fraud || 'Pending AI Analysis'}</span>
+                </div>
+                <div class="key-value">
+                    <span class="key">Risk Score:</span>
+                    <span class="value" style="color: #FF9800;">${txn.risk_score || 'Pending AI Analysis'}</span>
+                </div>
+                <div style="margin-top: 15px; padding: 10px; background: rgba(255, 152, 0, 0.1); border-left: 3px solid #FF9800; border-radius: 4px;">
+                    <strong>🤖 AI Processing Note:</strong><br>
+                    • is_fraud: ${aiNote.is_fraud}<br>
+                    • fraud_reason: ${aiNote.fraud_reason}<br>
+                    • risk_score: ${aiNote.risk_score}
                 </div>
             `;
         }

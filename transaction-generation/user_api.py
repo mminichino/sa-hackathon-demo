@@ -161,6 +161,99 @@ def generate_random_transaction():
 
     return txn_id, transaction_data, user_id
 
+def generate_fraudulent_transaction():
+    """Generate a fraudulent transaction with suspicious patterns"""
+    # Get random existing user
+    user_key = get_random_existing_user()
+
+    # Extract user_id and zipcode from key
+    parts = user_key.split(':')
+    user_id = parts[1]  # user001, user002, etc.
+    zipcode = parts[2]  # 10001, 94103, etc.
+
+    # Get user data from Redis
+    user_data = redis_client.hgetall(user_key)
+    if not user_data:
+        raise Exception(f"User not found: {user_key}")
+
+    # Generate transaction ID
+    txn_id = f"txn_{random.randint(1000, 9999)}"
+
+    # Define fraudulent patterns
+    fraud_patterns = [
+        {
+            "type": "high_value_food",
+            "merchant_name": "Uber Eats",
+            "amount": round(random.uniform(800.0, 1500.0), 2),
+            "description": "Unusually high food delivery amount"
+        },
+        {
+            "type": "multiple_small_purchases",
+            "merchant_name": "TikTok Shop",
+            "amount": round(random.uniform(9.99, 19.99), 2),
+            "description": "Small amount but part of rapid-fire purchases"
+        },
+        {
+            "type": "luxury_electronics",
+            "merchant_name": "Electronics World",
+            "amount": round(random.uniform(2000.0, 8000.0), 2),
+            "description": "High-value electronics purchase"
+        },
+        {
+            "type": "foreign_location",
+            "merchant_name": "International Store",
+            "amount": round(random.uniform(500.0, 3000.0), 2),
+            "description": "Purchase from unusual location"
+        },
+        {
+            "type": "late_night_gas",
+            "merchant_name": "24/7 Gas Station",
+            "amount": round(random.uniform(200.0, 500.0), 2),
+            "description": "Unusual late-night high-value gas purchase"
+        },
+        {
+            "type": "luxury_shopping",
+            "merchant_name": "Luxury Watches Ltd",
+            "amount": round(random.uniform(5000.0, 15000.0), 2),
+            "description": "High-value luxury item purchase"
+        }
+    ]
+
+    # Select random fraud pattern
+    fraud_pattern = random.choice(fraud_patterns)
+
+    # Generate suspicious location (different from user's location)
+    suspicious_locations = [
+        "Unknown Location, International",
+        "ATM Machine, Foreign Country",
+        "Online Purchase, Suspicious IP",
+        "Gas Station, Highway Rest Stop",
+        "Mall Kiosk, Temporary Location"
+    ]
+
+    # Generate transaction data with fraud indicators
+    transaction_data = {
+        "transaction_id": txn_id,
+        "user_id": user_id,
+        "zipcode": zipcode,
+        "location": random.choice(suspicious_locations),
+        "amount": fraud_pattern["amount"],
+        "currency": "USD",
+        "card_number": random.choice(CARD_NUMBERS),
+        "merchant_id": f"fraud_{random.randint(100, 999)}",
+        "merchant_name": fraud_pattern["merchant_name"],
+        "transaction_type": random.choice(["online", "card_present"]),
+        "status": "",  # Fraudulent transactions often complete quickly
+        "device_id": f"suspicious_dev_{random.randint(100, 999)}",
+        "timestamp": datetime.now().isoformat() + "Z",
+        "fraud_indicators": [],
+        "is_fraud": "",  # Blank - AI will detect and update
+        "risk_score": 0,  # Zero - AI will detect and update,
+        "reasoning": "" 
+    }
+
+    return txn_id, transaction_data, user_id
+
 @app.route('/')
 def index():
     """Serve the main UI"""
@@ -268,6 +361,58 @@ def create_transaction():
             'status': 'failed'
         }), 500
 
+@app.route('/api/fraud-transaction', methods=['POST'])
+def create_fraud_transaction():
+    """
+    Create a fraudulent transaction with suspicious patterns
+    Examples: High Uber Eats orders, TikTok shopping sprees, luxury purchases
+    """
+    try:
+        # Generate fraudulent transaction
+        txn_id, transaction_data, user_id = generate_fraudulent_transaction()
+
+        # Create Redis keys
+        redis_key = f"txn:{user_id}:{txn_id}"
+        sorted_set_key = f"amount:{user_id}:transactionset"
+
+        # 1. Store as JSON document
+        redis_client.execute_command('JSON.SET', redis_key, '$', json.dumps(transaction_data))
+
+        # 2. Add to Redis Stream
+        stream_data = {}
+        for key, value in transaction_data.items():
+            stream_data[key] = str(value)
+
+        stream_id = redis_client.xadd('transactions_stream', stream_data)
+
+        # 3. Add to Sorted Set (amount as score)
+        redis_client.zadd(sorted_set_key, {txn_id: transaction_data['amount']})
+
+        return jsonify({
+            'status': 'success',
+            'message': '🚨 SUSPICIOUS transaction created - AI will analyze for fraud!',
+            'redis_key': redis_key,
+            'stream_id': stream_id,
+            'sorted_set_key': sorted_set_key,
+            'transaction': transaction_data,
+            'ai_processing_note': {
+                'is_fraud': 'Blank - AI will detect and update',
+                'fraud_reason': 'Blank - AI will detect and update',
+                'risk_score': 'Zero - AI will detect and update',
+                'suspicious_patterns': [
+                    'Unusual amount for merchant type',
+                    'Suspicious location pattern',
+                    'Device/timing anomalies'
+                ]
+            }
+        }), 201
+
+    except Exception as e:
+        return jsonify({
+            'error': f'Internal server error: {str(e)}',
+            'status': 'failed'
+        }), 500
+
 if __name__ == '__main__':
     print("🛡️ Starting RediShield - Fraud Detection Protection Layer...")
     print("🚀 Emphasizing Redis as your protection layer")
@@ -277,11 +422,13 @@ if __name__ == '__main__':
     print("   GET / - RediShield Web UI")
     print("   POST /api/user - Create user with realistic data")
     print("   POST /api/transaction - Create random transaction")
+    print("   POST /api/fraud-transaction - Create FRAUDULENT transaction for testing")
     print("📊 Features:")
     print("   ✅ Generates users from 8 major US cities")
     print("   ✅ Creates transactions with JSON, Stream, and Sorted Set storage")
     print("   ✅ Real zipcodes and locations")
-    print("   ✅ Fraud score always false")
+    print("   ✅ Normal transactions: fraud score false")
+    print("   🚨 Fraud transactions: suspicious patterns (high amounts, unusual locations)")
     print("   ✅ Redis-styled protection layer UI")
 
     app.run(debug=True, host='0.0.0.0', port=5000)

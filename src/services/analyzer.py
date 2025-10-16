@@ -2,7 +2,11 @@ import threading
 import os
 import redis
 import time
+import logging
 from flask import Flask, jsonify
+from .db import get_results, save_result
+
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 HOSTNAME = os.environ.get("REDIS_HOST")
 PORT = os.environ.get("REDIS_PORT")
@@ -13,21 +17,25 @@ app = Flask(__name__)
 
 def analyzer_loop(r):
     stream_name = 'transactions_stream'
-    last_id = '$'
+    last_id = '0'
 
     while True:
-        print(f"Waiting for new messages in '{stream_name}'...")
-        response = r.xread(streams={stream_name: last_id}, count=1, block=0)
+        logging.info(f"Waiting for new messages in '{stream_name}'...")
+        response = r.xread(streams={stream_name: last_id}, count=1, block=5000)
 
         if response:
+            logging.info(f"New messages found")
             for stream, messages in response:
+                logging.info(f"Stream: {stream}")
                 for message_id, data in messages:
-                    print(f"New message received!")
-                    print(f"  ID: {message_id}")
-                    print(f"  Data: {data}")
+                    decoded_data = {k.decode('utf-8'): v.decode('utf-8') for k, v in data.items()}
+                    logging.info(f"Decoded data: {decoded_data}")
+                    results = get_results(r, decoded_data)
+                    logging.info(f"Results: {results}")
+                    save_result(r, decoded_data, results)
+                    r.xdel(stream_name, message_id)
+                    logging.info(f"Deleted message {message_id} from stream")
                     last_id = message_id
-
-        time.sleep(5)
 
 
 @app.route("/")

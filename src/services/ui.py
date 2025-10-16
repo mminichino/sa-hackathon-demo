@@ -475,21 +475,15 @@ with right_col:
             # Style the dataframe with fraud highlighting
             def highlight_fraud(row):
                 if 'is_fraud' in row.index:
-                    if row['is_fraud'] == True or row['is_fraud'] == 'true':
-                        return ['background-color: rgba(255, 68, 68, 0.4); color: white; font-weight: bold'] * len(row)
+                    if row['is_fraud'] == True or row['is_fraud'] == 'true' or str(row['is_fraud']).lower() == 'true':
+                        return ['background-color: #ffcccc; color: red; font-weight: bold'] * len(row)
                 return [''] * len(row)
 
-            # Apply styling and display with full screen width
+            # Apply styling and display
             styled_df = df.style.apply(highlight_fraud, axis=1)
 
-            # Use container to ensure full width
-            with st.container():
-                st.dataframe(
-                    styled_df,
-                    use_container_width=True,
-                    height=500,
-                    hide_index=True
-                )
+            # Display the dataframe
+            st.dataframe(styled_df, use_container_width=True, height=500)
 
             # Add fraud legend
             if "is_fraud" in df.columns:

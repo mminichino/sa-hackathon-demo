@@ -27,6 +27,7 @@ dependencies = [
     "flask",
     "uvicorn[standard]",
     "gunicorn",
+    "langchain_openai"
 ]
 
 [project.urls]

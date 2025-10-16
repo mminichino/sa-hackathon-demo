@@ -1,0 +1,110 @@
+[project]
+name = "fraudemo"
+dynamic = ["version"]
+description = "Fraud Detection Demo"
+readme = "README.md"
+authors = [
+    { name = "Michael Minichino", email = "info@unix.us.com" },
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+keywords = ["demo", "llm", "redis"]
+requires-python = ">=3.9,<4"
+dependencies = [
+    "attrs>=21.2.0",
+    "typer>=0.16.0",
+    "redis>=6.4.0",
+    "fastapi",
+    "uvicorn[standard]",
+    "gunicorn",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/mminichino/hostinit"
+
+[project.scripts]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.1.1",
+    "pytest-asyncio>=0.23.6",
+    "pytest-rerunfailures>=10.3",
+    "pytest-mock>=3.6.1",
+]
+dev = [
+    "hatch",
+    "taskipy",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/services/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+packages = ["services"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["services"]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
+asyncio_mode = "auto"
+addopts = "-rE --no-header -v -p no:warnings"
+log_file = "pytest.log"
+log_file_level = "DEBUG"
+pythonpath = [
+    ".",
+    "tests"
+]
+testpaths = [
+    "tests",
+]
+python_classes = [
+    "Test*"
+]
+python_files = [
+    "test_[0-9]*.py"
+]
+markers = [
+    "unit_test: marks a test as a unit test",
+    "regression_test: marks a test as a regression test",
+]
+
+[tool.tox]
+requires = ["tox>=4.19"]
+envlist = ["py38", "py312", "py313"]
+
+[tool.tox.env]
+skip_install = true
+allowlist_externals = ["uv"]
+commands_pre = [
+    "uv pip install -e .[dev,test]"
+]
+commands = [
+    "pytest -m unit_test"
+]
+
+[tool.tox.env.py38]
+description = "Posix 3.8 full test"
+
+[tool.tox.env.py312]
+description = "Posix 3.12 full test"
+
+[tool.tox.env.py313]
+description = "Posix 3.13 full test"
+
+[tool.taskipy.tasks]
+analyzer = "gunicorn -w 4 -k uvicorn.workers.UvicornWorker services.analyzer:app --bind 0.0.0.0:8000"
+monitor = "gunicorn -w 4 -k uvicorn.workers.UvicornWorker services.monitor:app --bind 0.0.0.0:8001"

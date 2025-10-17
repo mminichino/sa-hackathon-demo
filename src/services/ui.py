@@ -5,8 +5,10 @@ import pandas as pd
 import streamlit as st
 import redis
 
-REDIS_URL = 'redis://default:k9q8fDpI5kKXjeRmokTJTLJ8KImHMfHX@redis-18507.c48014.us-central1-mz.gcp.cloud.rlrcp.com:18507'
-REDIS_PASSWORD = 'k9q8fDpI5kKXjeRmokTJTLJ8KImHMfHX'
+HOSTNAME = os.environ.get("REDIS_HOST", "localhost")
+PORT = os.environ.get("REDIS_PORT", "6379")
+REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD")
+REDIS_URL = f"redis://default:{REDIS_PASSWORD}@{HOSTNAME}:{PORT}"
 KEY_PATTERN = 'user:*'
 PAGE_TITLE = "🛡️ RediShield Demo"
 
@@ -336,7 +338,14 @@ st.markdown(REDIS_STYLE, unsafe_allow_html=True)
 st.markdown("""
 <div class="main-header">
     <div class="redis-logo">
-        <img src="http://localhost:5000/logo.png" alt="RediShield Logo" class="logo-img">
+""", unsafe_allow_html=True)
+
+logo_path = os.path.join(os.path.dirname(__file__), "logo.png")
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.image(logo_path, width=60)
+
+st.markdown("""
         🛡️ RediShield
     </div>
     <h1 class="main-title">Fraud Detection Protection Layer</h1>
@@ -409,7 +418,7 @@ with right_col:
 
         if not transactions:
             st.info(f"💳 No transactions found for user **{user_id}**")
-            st.markdown("*Create some transactions using the RediShield transaction generator on port 5000*")
+            st.markdown("*Create some transactions using the RediShield transaction generator on port 8082*")
         else:
             # Make a DataFrame
             df = pd.DataFrame(transactions)

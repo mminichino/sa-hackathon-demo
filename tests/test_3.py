@@ -1,22 +1,18 @@
-#!/usr/bin/env python3
-"""
-Redis Connection Test Script
-Connects to Redis Cloud database and performs basic operations
-"""
-
 import redis
-import sys
+import os
 
 def test_redis_connection():
-    """Test connection to Redis Cloud database"""
+    """Test connection to a Redis Cloud database"""
+    hostname = os.environ.get("REDIS_HOST", "localhost")
+    port = os.environ.get("REDIS_PORT", "6379")
+    password = os.environ.get("REDIS_PASSWORD")
     
     # Redis Cloud connection configuration
     r = redis.Redis(
-        host='redis-18507.c48014.us-central1-mz.gcp.cloud.rlrcp.com',
-        port=18507,
+        host=hostname,
+        port=int(port),
         decode_responses=True,
-        username="default",
-        password="k9q8fDpI5kKXjeRmokTJTLJ8KImHMfHX",
+        password=password,
     )
     
     try:
@@ -68,20 +64,20 @@ def test_redis_connection():
         
         print(f"\n🎉 All tests completed successfully!")
         print(f"📊 Final key count: {r.dbsize()}")
-        
-        return True
-        
-    except redis.ConnectionError as e:
-        print(f"❌ Connection error: {e}")
-        return False
+
+        assert r.dbsize() == 4
+
+        r.delete('foo')
+        r.delete('user:1001')
+        r.delete('tasks')
+        r.delete('tags')
+
     except redis.AuthenticationError as e:
         print(f"❌ Authentication error: {e}")
+        return False
+    except redis.ConnectionError as e:
+        print(f"❌ Connection error: {e}")
         return False
     except Exception as e:
         print(f"❌ Unexpected error: {e}")
         return False
-
-if __name__ == "__main__":
-    print("=== Redis Cloud Connection Test ===")
-    success = test_redis_connection()
-    sys.exit(0 if success else 1)

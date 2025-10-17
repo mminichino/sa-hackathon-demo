@@ -1,34 +1,34 @@
-#!/usr/bin/env python3
-"""
-Simple Transaction API - Creates random transactions in Redis JSON format
-"""
-
 import redis
 import json
 import random
+import os
+from dotenv import load_dotenv
 from flask import Flask, jsonify
 from datetime import datetime
+from redis.commands.search.field import TagField
+from redis.commands.search.index_definition import IndexDefinition, IndexType
+from redis.exceptions import ResponseError
+
+load_dotenv()
 
 app = Flask(__name__)
 
+HOSTNAME = os.environ.get("REDIS_HOST", "localhost")
+PORT = os.environ.get("REDIS_PORT", "6379")
+PASSWORD = os.environ.get("REDIS_PASSWORD")
+
 # Redis connection
 redis_client = redis.Redis(
-    host='redis-18507.c48014.us-central1-mz.gcp.cloud.rlrcp.com',
-    port=18507,
+    host=HOSTNAME,
+    port=int(PORT),
     decode_responses=True,
-    username="default",
-    password="k9q8fDpI5kKXjeRmokTJTLJ8KImHMfHX",
+    password=PASSWORD,
 )
 
 def get_random_user():
     """Get random user from existing users in Redis"""
-    user_keys = [
-        "user001:10001",
-        "user002:94103",
-        "user003:60607",
-        "user004:33139",
-        "user005:98101"
-    ]
+    pattern = "user:*"
+    user_keys = list(redis_client.scan_iter(match=pattern))
     return random.choice(user_keys)
 
 def generate_random_transaction():
@@ -37,7 +37,7 @@ def generate_random_transaction():
 
     # Get random user
     user_key = get_random_user()
-    user_id, zipcode = user_key.split(':')
+    _, user_id, zipcode = user_key.split(':')
 
     # Try to get user data from Redis
     try:
@@ -108,13 +108,24 @@ def create_transaction():
         # Add to Redis Stream
         stream_data = {}
         for key, value in transaction_data.items():
-            stream_data[key] = str(value)  # Convert all values to strings for stream
+            stream_data[key] = str(value)  # Convert all values to strings for a stream
 
         stream_id = redis_client.xadd('transactions_stream', stream_data)
 
         # Add to Sorted Set (amount as score, transaction_id as member)
         sorted_set_key = f"amount:{user_id}:transactionset"
         redis_client.zadd(sorted_set_key, {txn_id: transaction_data['amount']})
+
+        try:
+            redis_client.ft("transactions-index").create_index(
+                [TagField("$.user_id", as_name="user_id")],
+                definition=IndexDefinition(
+                    prefix=["txn:"],
+                    index_type=IndexType.JSON
+                )
+            )
+        except ResponseError:
+            pass
 
         return jsonify({
             'status': 'success',
@@ -131,11 +142,14 @@ def create_transaction():
             'message': str(e)
         }), 500
 
-if __name__ == '__main__':
+def main():
     print("🚀 Starting Transaction API...")
     print("📊 Creates random transactions for existing users")
     print("👥 Users: user001, user002, user003, user004, user005")
     print("� Adds to Redis Stream: transactions_stream")
     print("� Adds to Sorted Set: {user_id}:transactionset")
     print("��🔗 Endpoint: POST /api/transaction")
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=8082)
+
+if __name__ == '__main__':
+    main()

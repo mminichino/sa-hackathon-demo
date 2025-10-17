@@ -1,34 +1,30 @@
-#!/usr/bin/env python3
-"""
-RediShield - Fraud Detection Protection Layer
-Emphasizing Redis as your protection layer
-
-- User Creation API: Creates users with realistic data
-- Transaction Generation API: Creates random transactions for existing users
-Key formats:
-- Users: user:user_id:zipcode
-- Transactions: txn:user_id:transaction_id
-"""
-
 import redis
-import hashlib
 import random
 import json
+from dotenv import load_dotenv
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from datetime import datetime
 import os
+from redis.commands.search.field import TagField
+from redis.commands.search.index_definition import IndexDefinition, IndexType
+from redis.exceptions import ResponseError
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
+HOSTNAME = os.environ.get("REDIS_HOST", "localhost")
+PORT = os.environ.get("REDIS_PORT", "6379")
+PASSWORD = os.environ.get("REDIS_PASSWORD")
+
 # Redis connection configuration
 redis_client = redis.Redis(
-    host='redis-18507.c48014.us-central1-mz.gcp.cloud.rlrcp.com',
-    port=18507,
+    host=HOSTNAME,
+    port=int(PORT),
     decode_responses=True,
-    username="default",
-    password="k9q8fDpI5kKXjeRmokTJTLJ8KImHMfHX",
+    password=PASSWORD,
 )
 
 # Realistic user data with proper zipcodes
@@ -117,10 +113,8 @@ CARD_NUMBERS = [
 
 def get_random_existing_user():
     """Get a random existing user from Redis"""
-    user_keys = [
-        "user:user001:10001", "user:user002:94103", "user:user003:60607",
-        "user:user004:33139", "user:user005:98101"
-    ]
+    pattern = "user:*"
+    user_keys = list(redis_client.scan_iter(match=pattern))
     return random.choice(user_keys)
 
 def generate_random_transaction():
@@ -346,6 +340,18 @@ def create_transaction():
         # 3. Add to Sorted Set (amount as score)
         redis_client.zadd(sorted_set_key, {txn_id: transaction_data['amount']})
 
+        # 4. Create Redis Search Index for transactions
+        try:
+            redis_client.ft("transactions-index").create_index(
+                [TagField("$.user_id", as_name="user_id")],
+                definition=IndexDefinition(
+                    prefix=["txn:"],
+                    index_type=IndexType.JSON
+                )
+            )
+        except ResponseError:
+            pass
+
         return jsonify({
             'status': 'success',
             'message': 'Transaction created, added to stream and sorted set',
@@ -413,7 +419,74 @@ def create_fraud_transaction():
             'status': 'failed'
         }), 500
 
-if __name__ == '__main__':
+@app.route('/api/user/<user>', methods=['GET'])
+def get_user(user):
+    pattern = f"user:{user}:*"
+    user_keys = list(redis_client.scan_iter(match=pattern))
+
+    if len(user_keys) > 0:
+        user = redis_client.hgetall(user_keys[0])
+        return jsonify(user), 200
+
+    return jsonify({
+        'error': f'User not found: {user}',
+        'status': 'failed'
+    }), 404
+
+@app.route('/api/users/zipcode/<zipcode>', methods=['GET'])
+def get_user_by_zipcode(zipcode):
+    pattern = f"user:*:{zipcode}"
+    user_keys = list(redis_client.scan_iter(match=pattern))
+
+    if len(user_keys) > 0:
+        result = {'users': [], 'count': len(user_keys)}
+        for user_key in user_keys:
+            user = redis_client.hgetall(user_key)
+            user_data = {'redis_key': user_key, 'user_data': user}
+            result['users'].append(user_data)
+        return jsonify(result), 200
+
+    return jsonify({
+        'error': f'Users not found in zipcode: {zipcode}',
+        'status': 'failed'
+    }), 404
+
+@app.route('/api/users/stats', methods=['GET'])
+def get_user_stats():
+    pattern = "user:*"
+    user_keys = list(redis_client.scan_iter(match=pattern))
+
+    if len(user_keys) > 0:
+        users = []
+        for user_key in user_keys:
+            user = redis_client.hgetall(user_key)
+            users.append(user)
+
+        result = {'stats': {}}
+        result['stats']['total_users'] = len(users)
+        result['stats']['creditcard_users'] = sum(1 for u in users if u.get('account_type') == 'creditcard')
+        result['stats']['debitcard_users'] = sum(1 for u in users if u.get('account_type') == 'debitcard')
+        return jsonify(result), 200
+
+    return jsonify({
+        'error': f'Users not found',
+        'status': 'failed'
+    }), 404
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    try:
+        redis_client.ping()
+        status = "online"
+    except ConnectionError as e:
+        status = f"offline: {e}"
+    except Exception as e:
+        status = f"error: {e}"
+
+    result = {'status': status, 'redis_connection': f"{HOSTNAME}:{PORT}"}
+    return jsonify(result), 200
+
+def main():
     print("🛡️ Starting RediShield - Fraud Detection Protection Layer...")
     print("🚀 Emphasizing Redis as your protection layer")
     print("👥 User API - Redis Key Format: user:user_id:zipcode")
@@ -431,4 +504,7 @@ if __name__ == '__main__':
     print("   🚨 Fraud transactions: suspicious patterns (high amounts, unusual locations)")
     print("   ✅ Redis-styled protection layer UI")
 
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=8081)
+
+if __name__ == '__main__':
+    main()

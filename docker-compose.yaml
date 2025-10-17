@@ -1,16 +1,39 @@
 services:
+
+  users:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: demo-app:latest
+    container_name: users
+    env_file:
+      - .env
+    command: uv run users
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+
   analyzer:
-    image: ghcr.io/astral-sh/uv:python3.10-bookworm
+    image: demo-app:latest
     container_name: analyzer
-    working_dir: /app
-    environment:
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PORT=${REDIS_PORT:-6379}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    volumes:
-      - .:/app
+    env_file:
+      - .env
     command: uv run analyzer
     ports:
-      - "8083:5000"
+      - "8083:8083"
+    depends_on:
+      - users
+    restart: unless-stopped
+
+  ui:
+    image: demo-app:latest
+    container_name: ui
+    env_file:
+      - .env
+    command: uv run ui
+    ports:
+      - "8501:8501"
+    depends_on:
+      - users
+      - analyzer
     restart: unless-stopped

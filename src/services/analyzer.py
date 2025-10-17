@@ -1,12 +1,14 @@
 import threading
 import os
 import redis
-import time
+from dotenv import load_dotenv
 import logging
 from flask import Flask, jsonify
 from .db import get_results, save_result
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
+
+load_dotenv()
 
 HOSTNAME = os.environ.get("REDIS_HOST")
 PORT = os.environ.get("REDIS_PORT")
@@ -63,7 +65,7 @@ def main():
 
     analyzer_thread = threading.Thread(target=analyzer_loop, args=(r,), daemon=True)
     analyzer_thread.start()
-    app.run()
+    app.run(host='0.0.0.0', port=8083)
 
 if __name__ == '__main__':
     main()

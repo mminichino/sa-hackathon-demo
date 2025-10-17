@@ -131,6 +131,19 @@ ENV/
 env.bak/
 venv.bak/
 
+# Local .terraform directories
+**/.terraform*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Local terraform.tfvars
+terraform.tfvars
+
+# tf lock file
+**/.terraform.lock.hcl
+
 # Spyder project settings
 .spyderproject
 .spyproject

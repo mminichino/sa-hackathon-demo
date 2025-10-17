@@ -25,31 +25,34 @@ dependencies = [
     "redis>=6.4.0",
     "fastapi",
     "flask",
+    "flask_cors",
     "uvicorn[standard]",
     "gunicorn",
-    "langchain_openai"
+    "langchain_openai",
+    "streamlit>=1.36",
+    "python-dotenv"
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/mminichino/hostinit"
+"Homepage" = "https://github.com/mminichino/sa-hackathon-demo"
 
 [project.scripts]
 analyzer = "services.analyzer:main"
+users = "services.user_api:main"
+transactions = "services.transaction_api:main"
+ui = "services.ui_run:main"
 
-[project.optional-dependencies]
+[dependency-groups]
 test = [
     "pytest>=8.1.1",
     "pytest-asyncio>=0.23.6",
     "pytest-rerunfailures>=10.3",
     "pytest-mock>=3.6.1",
+    "pytest-dotenv"
 ]
 dev = [
     "hatch",
     "taskipy",
-]
-ui = [
-    "streamlit>=1.36",
-    "redis>=6.4",
 ]
 
 [build-system]

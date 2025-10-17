@@ -179,3 +179,4 @@ cython_debug/
 .config/
 tests/output/
 test/
+.DS_Store

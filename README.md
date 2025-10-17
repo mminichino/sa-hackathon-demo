@@ -1,4 +1,4 @@
-# transaction_api.py
+# Redis Fraud Detection Demo
 
 A simple Flask API that generates random financial transactions and stores them in Redis using multiple data structures for fraud detection demos.
 

@@ -11,6 +11,23 @@ The `transaction_api.py` file creates a single-endpoint Flask API that:
 3. **Generates realistic transaction data** with random amounts, merchants, and card numbers
 4. **Stores the transaction** in Redis using 3 different data structures simultaneously
 
+## ⚙️ Setup
+1. Clone this repo
+2. Copy `example.env` to `.env` and update the OpenAI key and Redis connection details
+3. Run `docker compose up -d`
+
+```shell
+cp example.env .env
+```
+```shell
+docker compose up -d
+```
+
+The API helper UI can be accessed at http://127.0.0.1:8081.
+The Demo UI can be accessed at http://127.0.0.1:8501.
+
+Use the API helper UI to create users and transactions. Use the Demo UI to view the data.
+
 ## 🔧 How It Works
 
 ### Step 1: Random User Selection
